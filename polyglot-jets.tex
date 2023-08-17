@@ -1,0 +1,456 @@
+\documentclass{webofc}
+\usepackage{graphicx} % Required for inserting images
+\usepackage[varg]{txfonts}
+\usepackage[utf8]{inputenc}
+\usepackage{minted}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+% For draft version
+\usepackage{lineno}
+\linenumbers
+
+\title{Polyglot Jet Finding}
+
+\author{\firstname{Graeme Andrew} \lastname{Stewart}\inst{1}\fnsep\thanks{\email{graeme.andrew.stewart@cern.ch}} \and
+        \firstname{Philippe} \lastname{Gras}\inst{2}\fnsep \and
+        \firstname{Benedikt} \lastname{Hegner}\inst{1}\fnsep \and
+        \firstname{Atell} \lastname{Krasnopolski}\inst{3}
+        % etc.
+}
+
+\institute{CERN, Esplanade des Particules 1, Geneva, Switzerland
+\and
+           IRFU, CEA, Université Paris-Saclay, Gif-sur-Yvette, France
+\and
+           Taras Shevchenko National University of Kyiv, Ukraine
+          }
+
+\abstract{%
+  The evaluation of new computing languages for a large community, like HEP,
+involves comparison of many aspects of the languages' behaviour, ecosystem and
+interactions with other languages. In this paper we compare a number of
+languages using a common, yet non-trivial, HEP algorithm: the anti-$k_t$
+clustering algorithm used for jet finding. We compare specifically the algorithm
+implemented in Python (pure Python and accelerated with numpy and numba), and
+Julia, with respect to the reference implementation in C++, from Fastjet. As
+well as the speed of the implementation we describe the ergonomics of the
+language for the coder, as well as the efforts required to achieve the best
+performance, which can directly impact on code readability and sustainability. }
+
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+\label{sec:introduction}
+
+High energy physics, as a discipline, has undergone at least two major shifts in
+language after the adoption of Fortran in the 1960s~\cite{pivarski2022}. The
+first occurred at the end of the LEP era, in the run up to the LHC, with a
+wholesale shift from Fortran to C++. The second happened with the gradual
+incorporation of Python into the language ecosystem of HEP.
+
+In the first shift, Fortran was almost completely displaced by C++, albeit that
+pieces of Fortran lingered for many years in various forms (event generators and
+Geant3 in particular). In the second, a different transition took place, where
+Python became more and more popular, but grew co-existing with C++. C++ is
+largely used in performance critical areas, with Python finding traction when
+flexibility and rapid turn-around is needed, e.g., in configuration and
+steering. Python code is typically used to interface to higher performance C and
+C++ libraries, both generic (e.g., numpy) and specific HEP codes.
+
+Although the field is, for reasons of stability and legacy, slow to move to new
+languages, there are some significant issues with the current language choices
+that make an exploration of alternatives worthwhile. For example, the interfaces
+between Python and C++ are a source of friction, both for passing data and error
+messages back and forth, as well as being obliged to switch languages and
+reimplement code on occasion, when moving from a prototype to production
+(assuming the the developer actually has skills in both languages, which is not
+a given). This \emph{two language problem} has potentially been addressed in the
+\emph{Julia} programming
+language~\cite{bib:julia_freshapproach,10.1145/3276490}, with promising
+prospects for HEP, in particular, \cite{Stanitzki:2020bnx,eschle2023potential} as well as
+other STEM areas~\cite{perkel-julia-science}. Julia offers just in time
+compilation giving en ergonomic experience much like Python, but with runtime
+speeds comparable to C and C++. C++ is also a notoriously tricky language to
+use, particularly related to memory handling~\cite{ms-security-2019} and HEP C++
+codes are frequently riddled with code defects~\cite{Naumann_2014}. Julia is
+a memory safe language and we note that recently developers have been
+urged to move away from memory unsafe languages, like C++, towards memory safe
+alternatives~\cite{nsa-cybersecurity} (for scientific code this is more an
+issue of correctness, rather than security).
+
+Evaluation of the prospects for a language in any particular domain area should
+be done with a real problem from that domain, rather than any synthetic
+benchmark. In this paper we look at the problem of jet finding, or clustering,
+which is a use case from high energy physics used in calorimeter reconstruction.
+This is a good example as it is not trivial, but it is also not so complex that
+different implementations take too long to write.
+
+The languages we examine here, along with links to the code used, are given in
+Table \ref{tab:versions}.
+
+\begin{table}
+  \begin{center}
+    \begin{tabular}{l|l|l}
+      \textbf{Language} & \textbf{Repository} & \textbf{Reference}\\
+      \hline
+      C++ (FastJet) & \href{https://fastjet.fr/}{FastJet Website} (release 3.4.1) \\
+      Python (Pure) & \href{https://github.com/graeme-a-stewart/antikt-python}{GitHub antikt-python} \\
+      Python (Accelerated) & \href{https://github.com/graeme-a-stewart/antikt-python}{GitHub antikt-python} \\
+      Julia & \href{https://github.com/JuliaHEP/JetReconstruction.jl}{GitHub JetReconstruction.jl} (Basic Alg) \\
+       & \href{https://github.com/grasph/AntiKt.jl}{GitHub AntiKt.jl} (Tiled Alg) \\
+    \end{tabular}
+    \caption{Code repositories and reference versions used in this paper [TODO - add links to the commits/tags that we examine in this paper]}
+    \label{tab:versions}
+  \end{center}
+\end{table}
+
+The evaluation itself can cover many aspects of a programming language and the
+experience of using it. Metrics such as runtime are easy to evaluate, but the
+ergonomics of using particular languages and the support offered by the language
+ecosystem for developers are also critical and we comment on these.
+
+\section{Anti-$k_t$ Jet Clustering Algorithm}
+\label{sec:antikt}
+
+\subsection{Algorithm}
+\label{sec:alg}
+
+The Anti-$k_t$ jet clustering algorithm~\cite{Matteo_Cacciari_2008} is an
+infrared and colinear safe jet clustering algorithm, which is robust against
+soft fragmentation components. This algorithm is implemented in the following
+way:
+
+\begin{enumerate}[itemsep=2pt,parsep=2pt,partopsep=0pt]
+  \item A cone size parameter, $R$, is defined (0.4 is typical at the LHC)
+  \item For each active pseudojet $A$ (that is, an initial particle or a merged cluster)
+  \begin{enumerate}
+    \item Measure the geometric distance, $d=\mathrm{min}(R, \sqrt{\delta\eta^2 + \delta\phi^2})$ to a possible nearest neighbor pseudojet $B$ (as usual, $\eta$ is rapidity, $\phi$ is azimuthal angle)
+    \item Define the anti-$k_t$ distance, $d_{ij}$, as $d_{ij} = d \, \mathrm{min}(p^{-2}_{tA}, p^{-2}_{tB})$ or, if there is no neighbouring pseudojet, $d_{ij} = d \, p^{-2}_{tA}$
+  \end{enumerate}
+  \item Choose the pseudojet with the lowest $d_{ij}$
+  \begin{enumerate}
+    \item If this pseudojet has an active partner $B$, merge these two pseudojets to a new cluster
+    \item If not, this jet is finalised and removed from the active list
+  \end{enumerate}
+  \item Repeat until no pseudojets remain active
+\end{enumerate}
+
+Note that the definition of $d_{ij}$ with a negative power favours merging jets with a high $p_t$ first, which provides stability against soft radiation.
+
+The algorithm itself has a nice mixture of parallelisation opportunities
+(pairwise matching of pseudojet candidates) and serial steps (finding the
+minimum values of $d$ or $d_{ij}$), which is a good test of a non-naive
+algorithm's performance.
+
+\subsection{Algorithm Implementations}
+\label{sec:algimp}
+
+We consider two different implementations of the algorithm described above. 
+
+The first is a \emph{basic implementation} in which, at each step, all jets are
+considered as possible neighbours of each other. This algorithm has scaling that
+runs roughly as $N^2$, where $N$ is the number of initial particle hits.
+
+The second is a \emph{tiled implementation}, in which the geometric space
+$(\eta, \phi)$ is split into tiles of size $R$. In this way the number of
+possible neighbours of any particular jet is limited to the jet's tile and to
+its immediate neighbours, as illustrated in Figure \ref{fig:tiledimp}. This
+strategy reduces the amount of work that needs to be done, at the expense of
+extra bookkeeping of which jets are in each tile.
+
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics[width=0.5\linewidth]{tiled-algorithm.pdf}
+    \caption{In the tiled algorithm implementation $(\eta,\phi)$ space is split into tiles of size $R$. When a pseudojet needs to rescan for neighbours (red dot) only pseudojets in tiles within the distance $R$ need to be considered, here shaded in light blue.}
+    \label{fig:tiledimp}
+  \end{center}
+\end{figure}
+
+\section{Code Implementation Ergonomics}
+\label{sec:ergonomics}
+
+The code versions used are linked to in Table \ref{tab:versions}. We highlight
+some specific observations in this section.
+
+\subsection{C++, FastJet}
+\label{sec:cpp-ergonomics}
+
+The FastJet package is a well maintained code which is widely used in the HEP
+community. It is code which is of high quality and well scrutinised and tested.
+The general style of the code is more akin to C than C++, for reasons of
+minimising abstraction and increasing speed, although templates are used
+extensively (where any errors are not usually nicely handled by the compiler).
+
+For the tiled implementation, a linked list structure is used, which requires
+pointers to pointers that are challenging to reason about for the programmer, as
+illustrated below.
+
+\begin{minted}{c++}
+// set up the initial nearest neighbour information
+vector<Tile>::const_iterator tile;
+for (tile = _tiles.begin(); tile != _tiles.end(); tile++) {
+  // first do it on this tile
+  for (jetA = tile->head; jetA != NULL; jetA = jetA->next) {
+    for (jetB = tile->head; jetB != jetA; jetB = jetB->next) {
+      double dist = _bj_dist(jetA,jetB);
+      if (dist < jetA->NN_dist) {jetA->NN_dist = dist; 
+        jetA->NN = jetB;}
+      if (dist < jetB->NN_dist) {jetB->NN_dist = dist; 
+        jetB->NN = jetA;}
+    }
+  }
+  // then do it for RH tiles
+  for (Tile ** RTile = tile->RH_tiles; RTile != tile->end_tiles; RTile++) {
+    for (jetA = tile->head; jetA != NULL; jetA = jetA->next) {
+      for (jetB = (*RTile)->head; jetB != NULL; jetB = jetB->next) {
+        double dist = _bj_dist(jetA,jetB);
+        if (dist < jetA->NN_dist) {jetA->NN_dist = dist; 
+          jetA->NN = jetB;}
+        if (dist < jetB->NN_dist) {jetB->NN_dist = dist; 
+          jetB->NN = jetA;}
+      }
+    }
+  }
+}
+\end{minted}
+
+\subsection{Python}
+\label{sec:python-ergonomics}
+
+\subsubsection{Pure Python}
+
+Python is renowned for being a high productivity language and implementation of
+the jet finding algorithms is rather straightforward, with a clear logic.
+Mutability of classes allows code to be shared between the different
+implementations. e.g., an update scan for the basic case looks like this:
+
+\begin{minted}{python3}
+  def scan_for_my_nearest_neighbours(jetA: PseudoJet, jets: list[PseudoJet], 
+    R2: float):
+    '''Retest all other jets against the target jet'''
+    jetA.info.nn = None
+    jetA.info.nn_dist = R2
+    for ijetB, jetB in enumerate(jets):
+        if not jetB.info.active:
+            continue
+        if ijetB == jetA.info.id:
+            continue
+        dist = geometric_distance(jetA, jetB)
+        if dist < jetA.info.nn_dist:
+            jetA.info.nn_dist = dist
+            jetA.info.nn = ijetB
+    jetA.info.akt_dist = antikt_distance(jetA, jets[jetA.info.nn] 
+      if jetA.info.nn else None)
+\end{minted}
+
+Where specifically \texttt{info} is a mix-in class for bookkeeping pseudojets.
+
+While the code for the tiled implementation involves more bookkeeping, it also remains clear.
+
+\subsubsection{Acelerated Python}
+
+Accelerated Python code, where both numba and numpy are employed brings some
+added difficulty. Not all operations are easily expressed as numpy array
+calculations, particularly for dynamic arrays holding active and inactive jets.
+This necessitated the use of masks, which need to be tracked. In addition, numba
+jitted functions are very picky on types that can be passed (at least without
+being explicitly \emph{taught} how to deal with them), so instead of a
+structure, functions are called with many individual array elements, leading to
+complicated call signatures. e.g., the same function as above becomes
+
+\begin{minted}{python3}
+@njit
+def scan_for_my_nearest_neighbours(ijet:int, phi: npt.ArrayLike, 
+                                   rap:npt.ArrayLike, inv_pt2:npt.ArrayLike, 
+                                   dist:npt.ArrayLike, akt_dist:npt.ArrayLike, 
+                                   nn:npt.ArrayLike, 
+                                   mask:npt.ArrayLike, R2: float):
+    '''Retest all other jets against the target jet'''
+    nn[ijet] = -1
+    dist[ijet] = R2
+    _dphi = np.pi - np.abs(np.pi - np.abs(phi - phi[ijet]))
+    _drap = rap - rap[ijet]
+    _dist = _dphi*_dphi + _drap*_drap
+    _dist[ijet] = R2 # Avoid measuring the distance 0 to myself!
+    _dist[mask] = 1e20 # Don't consider any masked jets
+    iclosejet = _dist.argmin()
+    dist[ijet] = _dist[iclosejet]
+    if iclosejet == ijet:
+        nn[ijet] = -1
+        akt_dist[ijet] = dist[ijet] * inv_pt2[ijet]
+    else:
+        nn[ijet] = iclosejet
+        akt_dist[ijet] = dist[ijet] * (inv_pt2[ijet] if inv_pt2[ijet] 
+          < inv_pt2[iclosejet] else inv_pt2[iclosejet])
+        # As this function is called on new PseudoJets it's possible
+        # that we are now the NN of our NN
+        if dist[iclosejet] > dist[ijet]:
+            dist[iclosejet] = dist[ijet]
+            nn[iclosejet] = ijet
+            akt_dist[iclosejet] = dist[iclosejet] * (inv_pt2[ijet] 
+              if inv_pt2[ijet] < inv_pt2[iclosejet] else inv_pt2[iclosejet])
+\end{minted}
+
+numba also has some surprising omissions from the numpy functions which it can
+JIT, e.g., array index ravelling, that required explicit reimplementation.
+
+\subsection{Julia}
+\label{sec:julia-ergonomics}
+
+Julia is gaining in popularity because it is a language that is easy to use.
+We found numerous nice features that allow code to be clear, e.g., using the
+broadcast syntax for calculations on arrays is very compact:
+
+\begin{minted}{julia}
+  _kt2 = (JetReconstruction.pt.(_objects) .^ 2) .^ _p
+\end{minted}
+
+Here \texttt{.\^} (raise to power) operates on each member of the \texttt{pt}
+value of the \texttt{\_objects} array.
+
+Like the FastJet code, loops can be used without sacrificing speed, so the code checking for new nearest neighbours is
+
+\begin{minted}{julia}
+# finds new nn for i and checks everyone additionally
+function _upd_nn_crosscheck!(i::Int, from::Int, 
+  to::Int, _eta, _phi, _R2, _nndist, _nn)
+    nndist = _R2
+    nn = i
+    @inbounds @simd for j in from:to
+        delta2 = _dist(i, j, _eta, _phi)
+        if delta2 < nndist
+            nn = j
+            nndist = delta2
+        end
+        if delta2 < _nndist[j]
+            _nndist[j] = delta2
+            _nn[j] = i
+        end
+    end
+    _nndist[i] = nndist
+    _nn[i] = nn;
+end
+\end{minted}
+
+Note there are some optimisations applied here as Julia \emph{macros}, e.g.,
+\texttt{@simd}, which we discuss below. In particular, here we present
+updated results w.r.t.~\cite{polyglot-jets-conference} for the tiled algorithm in
+Julia from applying the \texttt{LoopVectorisation} package in a key area adding
+the \texttt{@turbo} macro:
+
+\begin{minted}{julia}
+find_best(diJ, n) = begin
+    best = 1
+    @inbounds diJ_min = diJ[1]
+    @turbo for here in 2:n # Loop vectorisation marco
+        newmin = diJ[here] < diJ_min
+        best = newmin ? here : best
+        diJ_min = newmin ? diJ[here] : diJ_min
+    end
+    diJ_min, best
+end
+\end{minted}
+
+\section{Code Performance}
+\label{sec:performance}
+
+The different implementations of the anti-$k_t$ algorithm were tested on the
+same benchmark machine, an Intel(R) Core(TM) i7-3770 CPU \@ 3.40GHz with 8GB RAM, running
+Alma Linux 9.2. The software versions used were gcc 11.3.1, Python 3.11.4 (with
+numba 0.57.1 and numpy 1.24.4) and Julia 1.9.2.
+
+Reconstruction of 100 LHC-like pp events generated with Pythia8 at 13TeV
+(filtering on a minimum jet $p_t$ of 20GeV) was run multiple times and the
+average reconstruction time per event is given in Table \ref{tab:results}. These
+numbers are normalised to the FastJet tiled algorithm performance (which is
+$324\mu \mathrm{s}$ per event on the benchmark machine). Multiple repeats of the
+benchmark were done and jitter was observed to be extremely low, $<1\%$, so is
+not given. In these measurements the time to read the events (in HepMC3 format)
+and the JIT time for Julia and numba is excluded.
+
+\begin{table}[h]
+  \begin{center}
+    \begin{tabular}{l|cc}
+      \textbf{Implementation} & \textbf{Basic Algorithm} & \textbf{Tiled Algorithm} \\
+      \hline
+      C++ (FastJet) & 17.6 & 1.00 \\
+      Python (Pure) & 966 & 222 \\
+      Python (Accelerated) & 53.4 & 178 \\
+      Julia & 4.00 & 0.67 \\
+    \end{tabular}
+    \caption{Relative run times for the reconstruction of 100 13TeV pp events, normalised to the time for FastJet's tiled algorithm.}
+    \label{tab:results}
+  \end{center}
+\end{table}
+
+We observe that the C++ FastJet code is here one of fastest algorithms
+available. The increase in performance for the tiled algorithm, over the naive
+basic one, is significant. 
+
+As expected, the pure Python codes run very slowly in comparison. More
+surprisingly, the accelerated Python codes have quite poor performance as well.
+This is due to the fact that not all parts of the algorithm can be accelerated -
+bookkeeping operations still run in normal Python and become dominant in the
+overall runtime. This is particularly true of the tiled algorithm, which
+deliberately reduces the work to be done (which can be parallelised and
+accelerated) at the cost of more bookkeeping. This significantly hurts the
+accelerated algorithm, which ends up slower than the basic algorithm and barely
+faster than the pure Python code.
+
+Our Julia code exceeds the performance of FastJet code. In the case of the tiled
+algorithm, as noted in Section \ref{sec:julia-ergonomics}, a \emph{loop
+vectorisation} optimisation was applied to the search across all $d_{ij}$ to
+find the minimum value. In the case of the basic algorithm the Julia code uses a
+structure of arrays layout, which the compiler can highly optimise and
+additional benefit is gained from macros like \texttt{@simd}, which allow the
+compiler to apply further optimisations.
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+We have implemented the anti-$k_t$ algorithm in a number of different languages
+and examined code ergonomics as well as run time performance. The benchmark C++
+code from FastJet is well written, but the hardest to reason on correctness, due
+to the nature of the language. Python is excellent for code logic and
+flexibility, but has a very poor run time performance; accelerating with numpy
+and numba unfortunately takes much of this advantage away, yet still fails to
+achieve a competitive run time. Julia performs extremely well, with an excellent
+`out of the box' run time. The Julia compiler is able to find significant
+speed-ups and features like broadcast operators help to keep code clean and
+quick. Further, applying optimisations in Julia through the use of macros is
+extremely easy for the programmer to exploit and result in Julia having the best
+performance of all the codes that we tested.
+
+It should be noted that the optimisations found by the Julia compiler could also
+be applied to the FastJet code to close the gap. However, the authors'
+experience is that doing this in C++ is considerably more difficult.
+
+Ergonomically, C++ is also the most difficult language to use, with no package
+manager, no built in profiler, and where templates and memory management remain
+tricky. The breadth of libraries in C++ is impressive, although managing
+dependencies is not easy. In Python the situation is far better, albeit that the
+package managers are not quite standardised (pip vs.\ conda/mamba). Profiling
+and debugging when accelerated code is used in Python (which is how Python is
+used in data intensive science) is not easy, but package support in Python is
+really excellent. In Julia the ecosystem is very well integrated, with a built
+in package manager and excellent reproducibility. Julia libraries are not as
+extensive as for C++ and Python, although the speed of development of new
+scientific libraries (which is Julia's target community) is picking up quickly
+and most areas are covered (see the discussion in Eschel et
+al.~\cite{eschle2023potential}). Debugging and profiling in Julia are very well
+integrated.
+
+We conclude that expanding the use of Julia in high energy
+physics would be very worthwhile, given its excellent performance and ergonomics.
+
+\sloppy
+\raggedright
+% \clearpage
+\bibliography{polyglot-jets}
+
+\end{document}
