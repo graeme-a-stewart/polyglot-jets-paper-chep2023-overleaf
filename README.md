@@ -8,18 +8,11 @@ This is the proceedings paper for Polyglot Jet Finding at CHEP2023, Indico refer
 
 The benchmarks in this paper are obtained from running the following codes:
 
-| Language | Algorithm | Repository | Commit |
-|---|---|---|---|
-| C++ | N2Basic | <http://fastjet.fr/all-releases.html> v3.4.1 [^1] | - |
-| C++ | N2Tiled | <http://fastjet.fr/all-releases.html> v3.4.1 | - |
-| Python (Pure) | N2Basic | https://github.com/graeme-a-stewart/antikt-python | `5f3b5d636a4d12156f3925eeb7aa0a454ae0746a` |
-| Python (Accelerated) | N2Basic | https://github.com/graeme-a-stewart/antikt-python | `5f3b5d636a4d12156f3925eeb7aa0a454ae0746a` |
-| Python (Pure) | N2Tiled | https://github.com/graeme-a-stewart/antikt-python | `5f3b5d636a4d12156f3925eeb7aa0a454ae0746a` |
-| Python (Accelerated) | N2Tiled | https://github.com/graeme-a-stewart/antikt-python | `5f3b5d636a4d12156f3925eeb7aa0a454ae0746a` |
-| Julia | N2Basic | https://github.com/JuliaHEP/JetReconstruction.jl | `b79b941764f29b996fc7fe49c96cd29b439fbeaf` |
-| Julia | N2Tiled | https://github.com/JuliaHEP/JetReconstruction.jl | `b79b941764f29b996fc7fe49c96cd29b439fbeaf` |
-
-[^1]: This was the code for the FastJet library. A small application was written to wrap the library, which can be found at <https://github.com/graeme-a-stewart/antikt-python/tree/main/fastjet>.
+| Language | Repository | Release/Commit |
+|---|---|---|
+| C++ | <http://fastjet.fr/all-releases.html> | v3.4.1 |
+| Python | https://github.com/graeme-a-stewart/antikt-python | `5f3b5d636a4d12156f3925eeb7aa0a454ae0746a` |
+| Julia | https://github.com/JuliaHEP/JetReconstruction.jl | `b79b941764f29b996fc7fe49c96cd29b439fbeaf` |
 
 ### Host
 
@@ -38,7 +31,7 @@ running CentOS7. The LCG_104 release was used to compile FastJet.
 
 #### Compilation and Installation Notes
 
-**FastJet** was compiled with `-O2`.
+The **FastJet** libraries were compiled with the default`-O2` level of optimisation. In order to benchmark FastJet a small application was written, which can be found [here](https://github.com/graeme-a-stewart/antikt-python/tree/main/fastjet).
 
 ### Benchmark Commands
 
