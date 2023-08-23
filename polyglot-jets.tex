@@ -168,7 +168,7 @@ extra bookkeeping of which jets are in each tile.
 
 \begin{figure}[h]
   \begin{center}
-    \includegraphics[width=0.5\linewidth]{tiled-algorithm.pdf}
+    \includegraphics[width=0.4\linewidth]{tiled-algorithm.pdf}
     \caption{In the tiled algorithm implementation $(\eta,\phi)$ space is split into tiles of size $R$. When a pseudojet needs to rescan for neighbours (red dot) only pseudojets in tiles within the distance $R$ need to be considered, here shaded in light blue.}
     \label{fig:tiledimp}
   \end{center}
@@ -363,9 +363,10 @@ end
 \label{sec:performance}
 
 The different implementations of the anti-$k_t$ algorithm were tested on the
-same benchmark machine, an Intel(R) Core(TM) i7-3770 CPU \@ 3.40GHz with 8GB RAM, running
-Alma Linux 9.2. The software versions used were gcc 11.3.1, Python 3.11.4 (with
-numba 0.57.1 and numpy 1.24.4) and Julia 1.9.2.
+same benchmark machine, a 64 core AMD EPYC 7302 \@ 3.00GHz with 24GB RAM,
+running CentOS7. The software versions used were gcc 11.3.0, Python 3.11.4 (with
+numba 0.57.1 and numpy 1.24.4) and Julia 1.9.2. More details on how to reproduce
+the measurements are given in \cite{polyglot-jets-zenodo}.
 
 Reconstruction of 100 LHC-like pp events generated with Pythia8 at 13TeV
 (filtering on a minimum jet $p_t$ of 20GeV) was run multiple times and the
@@ -381,10 +382,10 @@ and the JIT time for Julia and numba is excluded.
     \begin{tabular}{l|cc}
       \textbf{Implementation} & \textbf{Basic Algorithm} & \textbf{Tiled Algorithm} \\
       \hline
-      C++ (FastJet) & 17.6 & 1.00 \\
-      Python (Pure) & 966 & 222 \\
-      Python (Accelerated) & 53.4 & 178 \\
-      Julia & 4.00 & 0.67 \\
+      C++ (FastJet) & 16.4 & 1.00 \\
+      Python (Pure) & 504 & 110 \\
+      Python (Accelerated) & 28.5 & 113 \\
+      Julia & 2.83 & 0.94 \\
     \end{tabular}
     \caption{Relative run times for the reconstruction of 100 13TeV pp events, normalised to the time for FastJet's tiled algorithm.}
     \label{tab:results}
@@ -408,10 +409,13 @@ faster than the pure Python code.
 Our Julia code exceeds the performance of FastJet code. In the case of the tiled
 algorithm, as noted in Section \ref{sec:julia-ergonomics}, a \emph{loop
 vectorisation} optimisation was applied to the search across all $d_{ij}$ to
-find the minimum value. In the case of the basic algorithm the Julia code uses a
-structure of arrays layout, which the compiler can highly optimise and
-additional benefit is gained from macros like \texttt{@simd}, which allow the
-compiler to apply further optimisations.
+find the minimum value, which results in a slightly improved runtime on x86
+architectures\footnote{On Apple's M2Pro chip, the advantage for Julia is more
+significant, with the Julia code running $\times1.45$ faster for the N2Tiled
+case}. In the case of the basic algorithm the Julia code uses a structure of
+arrays layout, which the compiler can highly optimise and additional benefit is
+gained from macros like \texttt{@simd}, which allow the compiler to apply
+further optimisations.
 
 \section{Conclusions}
 \label{sec:conclusions}
