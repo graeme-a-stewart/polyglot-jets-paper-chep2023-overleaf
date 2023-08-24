@@ -11,7 +11,7 @@ The benchmarks in this paper are obtained from running the following codes:
 | Language | Repository | Release/Commit |
 |---|---|---|
 | C++ | <http://fastjet.fr/all-releases.html> | v3.4.1 |
-| Python | https://github.com/graeme-a-stewart/antikt-python | `5f3b5d636a4d12156f3925eeb7aa0a454ae0746a` |
+| Python | https://github.com/graeme-a-stewart/antikt-python | `e607f119f2d061723606a95f9cb1428cff53025f` |
 | Julia | https://github.com/JuliaHEP/JetReconstruction.jl | `b79b941764f29b996fc7fe49c96cd29b439fbeaf` |
 
 ### Host
@@ -28,10 +28,57 @@ running CentOS7. The LCG_104 release was used to compile FastJet.
 | numba | 0.57.1 |
 | numpy | 1.24.4 |
 | Julia | 1.9.2 |
+### Compilation and Installation Notes
 
-#### Compilation and Installation Notes
+Both the Python and Julia repositories have the input HepMC3 event sample stored in a gzip format. This just needs to be unpacked in the usual way, e.g.,
 
-The **FastJet** libraries were compiled with the default`-O2` level of optimisation. In order to benchmark FastJet a small application was written, which can be found [here](https://github.com/graeme-a-stewart/antikt-python/tree/main/fastjet).
+```sh
+gunzip -c events.hepmc3.gz > events.hepmc3
+```
+
+#### C++ FastJet
+
+The FastJet libraries were compiled with the default`-O2` level of optimisation.
+
+The FastJet profiling binary is in the [antikt-python](https://github.com/graeme-a-stewart/antikt-python/tree/main/fastjet) repository. To compile it one needs to have the FastJet and HepMC3 libraries available (any version of HepMC3 should work, but for this study `3.2.6` was used). A minimal `Makefile` should work for most cases - just edit it for your system to point to where FastJet and HepMC3 are installed by changing `HEPMC3_DIR` and `FASTJET_DIR`. Depending on your system setup you may need to define `LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH` (OS X) to run the `chep-polyglot-jets` binary.
+
+#### Python
+
+The Python repository contains a conda-style set of dependencies in `environment.yml`. You should be able to setup a correct Python environment as follows:
+
+```sh
+conda create -f environment.yml
+conda activate antikt-python
+```
+
+[Mamba](https://mamba.readthedocs.io/en/latest/) and [micromamba](https://mamba.readthedocs.io/en/latest/micromamba-installation.html) work equally well.
+
+#### Julia
+
+The Julia repository has dependencies in the usual `Project.toml` file. The environment can be initialised in the usual Julia manner from the git checkout, e.g.,
+
+```julia
+julia --project=.
+               _
+   _       _ _(_)_     |  Documentation: https://docs.julialang.org
+  (_)     | (_) (_)    |
+   _ _   _| |_  __ _   |  Type "?" for help, "]?" for Pkg help.
+  | | | | | | |/ _` |  |
+  | | |_| | | | (_| |  |  Version 1.9.2 (2023-07-05)
+ _/ |\__'_|_|_|\__'_|  |  Official https://julialang.org/ release
+|__/                   |
+
+julia> using Pkg
+
+julia> Pkg.instantiate()
+    Updating registry at `~/.julia/registries/General.toml`
+    Updating `~/tmp/JetReconstruction.jl/Project.toml`
+...
+
+julia> 
+```
+
+(Or enter the package manager from the REPL, with `]`, and just issue `instantiate` there.)
 
 ### Benchmark Commands
 
