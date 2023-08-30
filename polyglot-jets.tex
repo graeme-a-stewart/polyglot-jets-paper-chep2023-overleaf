@@ -50,11 +50,13 @@ performance, which can directly impact on code readability and sustainability. }
 \section{Introduction}
 \label{sec:introduction}
 
-High energy physics, as a discipline, has undergone at least two major shifts in
-language after the adoption of Fortran in the 1960s~\cite{pivarski2022}. The
-first occurred at the end of the LEP era, in the run up to the LHC, with a
-wholesale shift from Fortran to C++. The second happened with the gradual
-incorporation of Python into the language ecosystem of HEP.
+High energy physics (HEP), as a discipline, has undergone at least two major
+shifts in language after the adoption of Fortran in the
+1960s~\cite{pivarski2022}. The first occurred at the end of the era of the Large
+Electron-Positron Collider (LEP), in the run up to the Large Hadron Collider
+(LHC), with a wholesale shift from Fortran to C++ around the year 2000. The
+second happened with the gradual incorporation of Python into the language
+ecosystem of HEP, from about 2010.
 
 In the first shift, Fortran was almost completely displaced by C++, albeit that
 pieces of Fortran lingered for many years in various forms (event generators and
@@ -386,7 +388,9 @@ and the JIT time for Julia and numba is excluded.
       Python (Accelerated) & 28.5 & 113 \\
       Julia & 2.83 & 0.94 \\
     \end{tabular}
-    \caption{Relative run times for the reconstruction of 100 13TeV pp events, normalised to the time for FastJet's tiled algorithm.}
+    \caption{Relative run times for the reconstruction of 100 13TeV pp events, 
+    normalised to the time for FastJet's tiled algorithm. Results are stable and 
+    reproducible on the benchmark machine at $<1\%$.}
     \label{tab:results}
   \end{center}
 \end{table}
