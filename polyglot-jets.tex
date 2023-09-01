@@ -184,11 +184,12 @@ some specific observations in this section.
 \subsection{C++, FastJet}
 \label{sec:cpp-ergonomics}
 
-The FastJet package is a well maintained code which is widely used in the HEP
-community. It is code which is of high quality and well scrutinised and tested.
-The general style of the code is more akin to C than C++, for reasons of
-minimising abstraction and increasing speed, although templates are used
-extensively (where any errors are not usually nicely handled by the compiler).
+The FastJet package~\cite{Cacciari:2011ma,fastjet-web} is a well maintained code
+which is widely used in the HEP community. It is code which is of high quality
+and well scrutinised and tested. The general style of the code is more akin to C
+than C++, for reasons of minimising abstraction and increasing speed, although
+templates are used extensively (where any errors are not usually nicely handled
+by the compiler).
 
 For the tiled implementation, a linked list structure is used, which requires
 pointers to pointers that are challenging to reason about for the programmer, as
