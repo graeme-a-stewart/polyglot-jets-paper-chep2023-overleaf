@@ -158,7 +158,7 @@ implementation~\cite{Cacciari:2011ma}, that proceeds in the following way:
 \end{enumerate}
 
 Note that the definition of $d_{ij}$, so-called \akt, with a negative power
-favours merging jets with a high $p_t$ first, which provides stability against
+favours merging jets with a high transverse momentum first, which provides stability against
 soft radiation, hence its popularity. (Considering a general metric distance of
 $k^{2p}_\text{T}$, $p=-1$ is \akt\ merging, $p=0$ is Cambridge/Achen merging and
 $p=1$ is inclusive $k_\text{T}$, \cite{Matteo_Cacciari_2008}.)
@@ -459,11 +459,12 @@ can be vectorised better, but may be of lower accuracy. Use of these marcos may
 lead to different numerical results so must be carefully validated (in our case
 we have checked that they are safe). One advantage in Julia is that these
 macros, as well as \texttt{@fastmath}, can be used and validated on a
-case-by-case basis (cf. the \texttt{-O3} or \texttt{-ftree-vectorize}, which are
-applied per compilation unit, but more than likely are actually used globally). In
-addition, the JIT strategy of Julia and Python's numba will automatically target
-the binary architecture of the machine being used, avoiding portability issues
-that can hamper C++ compiled binaries on different microarchitectures.
+case-by-case basis (cf.\ the C++ compiler options such as \texttt{-O3} or
+\texttt{-ftree-vectorize}, which are applied per compilation unit, but more than
+likely are actually used globally). In addition, the JIT strategy of Julia and
+Python's numba will automatically target the binary architecture of the machine
+being used, avoiding portability issues that can hamper C++ compiled binaries on
+different microarchitectures.
 
 \section{Conclusions}
 \label{sec:conclusions}
