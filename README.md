@@ -12,7 +12,7 @@ The benchmarks in this paper are obtained from running the following codes:
 |---|---|---|
 | C++ | <http://fastjet.fr/all-releases.html> | v3.4.1 |
 | Python | https://github.com/graeme-a-stewart/antikt-python | `e607f119f2d061723606a95f9cb1428cff53025f` |
-| Julia | https://github.com/JuliaHEP/JetReconstruction.jl | `b79b941764f29b996fc7fe49c96cd29b439fbeaf` |
+| Julia | https://github.com/JuliaHEP/JetReconstruction.jl | `15bfd59b3eeb6a94cc0ee7043550ade6c5738c3e` |
 
 ### Host
 
