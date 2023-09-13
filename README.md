@@ -91,7 +91,7 @@ julia>
 | Python (Pure) | N2Tiled | `./antikt-tiledN2cluster.py --maxevents=100 --trials 16 ../data/events.hepmc3` |
 | Python (Accelerated) | N2Tiled | `./antikt-tiledN2cluster.py --maxevents=100 --trials 16 --numba ../data/events.hepmc3` |
 | Julia | N2Basic | `julia --project=. chep.jl --maxevents=100 --nsamples=100 --strategy=N2Plain test/data/events.hepmc3 --gcoff` |
-| Julia | N2Tiled | `julia --project=. chep.jl --maxevents=100 --nsamples=100 --strategy=N2TiledLL test/data/events.hepmc3 --gcoff` |
+| Julia | N2Tiled | `julia --project=. chep.jl --maxevents=100 --nsamples=100 --strategy=N2Tiled test/data/events.hepmc3 --gcoff` |
 
 ### CHEP Results
 
