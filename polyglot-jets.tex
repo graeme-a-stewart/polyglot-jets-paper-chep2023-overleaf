@@ -5,14 +5,18 @@
 \usepackage{graphicx} % Required for inserting images
 \usepackage[varg]{txfonts}
 \usepackage[utf8]{inputenc}
-\usepackage{minted}
+
+% Workaround for arXiv, start with "finalizecache" then switch to "frozencache"
+% \usepackage[finalizecache,cachedir=.]{minted}
+\usepackage[frozencache,cachedir=.]{minted}
+
 \usepackage{natbib}
 \usepackage{hyperref}
 \usepackage{enumitem}
 
 % For draft version
 \usepackage{lineno}
-\linenumbers
+% \linenumbers
 
 \newcommand{\akt}{anti-${k}_\text{T}$}
 \newcommand{\Akt}{Anti-${k}_\text{T}$}

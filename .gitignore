@@ -306,3 +306,7 @@ TSWLatexianTemp*
 
 # Signed copy, do not upload!
 publication_right_form-Polygot-Jet-Finding.pdf
+
+# Minted/pygments files
+*.pygtex
+*.pygstyle
