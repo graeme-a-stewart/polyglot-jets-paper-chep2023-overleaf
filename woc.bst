@@ -1840,7 +1840,7 @@ FUNCTION {article}
   %format.issn output  %%EDP Sciences: 03/11/2011
   format.note output
   format.eprint output
-  %format.url output   %%EDP Sciences: 03/11/2011
+  format.url output   %%EDP Sciences: 03/11/2011
   fin.entry
 }
 FUNCTION {book}
